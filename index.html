@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>LiveZoom WallRange</title>
+    <title>Precision WallRange</title>
     <style>
         * {
             box-sizing: border-box;
@@ -23,14 +23,14 @@
             overflow: hidden;
         }
         header {
-            padding: 14px;
+            padding: 12px;
             text-align: center;
             background: rgba(15, 23, 42, 0.9);
             border-bottom: 1px solid #1e293b;
             z-index: 10;
         }
         h1 {
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 700;
             color: #38bdf8;
         }
@@ -61,27 +61,55 @@
             height: 100%;
             pointer-events: none;
         }
-        .marker {
+        /* Precision Hairline Crosshair */
+        .crosshair {
             position: absolute;
-            width: 22px;
-            height: 22px;
-            background: #ef4444;
-            border: 3px solid #fff;
-            border-radius: 50%;
+            width: 40px;
+            height: 40px;
             transform: translate(-50%, -50%);
             display: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+            pointer-events: none;
             z-index: 5;
         }
+        .crosshair::before {
+            content: '';
+            position: absolute;
+            top: 19px;
+            left: 0;
+            width: 40px;
+            height: 2px;
+            background: #ef4444;
+            box-shadow: 0 0 4px rgba(0,0,0,0.8);
+        }
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 19px;
+            width: 2px;
+            height: 40px;
+            background: #ef4444;
+            box-shadow: 0 0 4px rgba(0,0,0,0.8);
+        }
+        .crosshair-dot {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            width: 4px;
+            height: 4px;
+            background: #fff;
+            border-radius: 50%;
+        }
+
         .zoom-control-box {
             position: absolute;
-            right: 16px;
-            top: 20px;
+            right: 14px;
+            top: 16px;
             background: rgba(15, 23, 42, 0.85);
             backdrop-filter: blur(8px);
             border: 1px solid #334155;
-            padding: 10px 14px;
-            border-radius: 20px;
+            padding: 8px 12px;
+            border-radius: 16px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -94,33 +122,32 @@
             font-weight: 700;
         }
         .zoom-control-box input[type="range"] {
-            writing-mode: bt-lr; /* IE */
             writing-mode: vertical-lr;
             direction: rtl;
             width: 8px;
-            height: 120px;
+            height: 100px;
             accent-color: #38bdf8;
             cursor: pointer;
         }
         .control-panel {
             background: #0f172a;
-            padding: 18px;
+            padding: 16px;
             border-top: 1px solid #1e293b;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             z-index: 10;
         }
-        .input-row {
+        .row {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
         }
         .input-group {
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 3px;
         }
         label {
             font-size: 10px;
@@ -132,17 +159,17 @@
             background: #1e293b;
             border: 1px solid #334155;
             color: #fff;
-            padding: 10px;
-            border-radius: 10px;
-            font-size: 14px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 13px;
             outline: none;
             width: 100%;
         }
         .result-box {
             background: #1e293b;
             border: 1px solid #334155;
-            padding: 12px;
-            border-radius: 12px;
+            padding: 10px;
+            border-radius: 10px;
             text-align: center;
         }
         .result-label {
@@ -151,24 +178,20 @@
             text-transform: uppercase;
         }
         .result-value {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 700;
             color: #4ade80;
             margin-top: 2px;
-        }
-        .btn-row {
-            display: flex;
-            gap: 10px;
         }
         .btn {
             flex: 1;
             background: #38bdf8;
             color: #0f172a;
             border: none;
-            padding: 13px;
+            padding: 12px;
             font-size: 14px;
             font-weight: 600;
-            border-radius: 12px;
+            border-radius: 10px;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
             transition: transform 0.1s;
@@ -186,7 +209,7 @@
             border: 1px solid rgba(56, 189, 248, 0.3);
             padding: 8px 12px;
             border-radius: 8px;
-            font-size: 12px;
+            font-size: 11px;
             color: #38bdf8;
             text-align: center;
         }
@@ -195,8 +218,8 @@
 <body>
 
     <header>
-        <h1>LiveZoom WallRange</h1>
-        <div class="subtitle">Live Camera Optical Distance Measurer</div>
+        <h1>Precision WallRange</h1>
+        <div class="subtitle">Calibrated Optical Measurer</div>
     </header>
 
     <div class="viewport" id="viewport">
@@ -208,17 +231,17 @@
         </div>
 
         <div class="overlay-layer">
-            <div class="marker" id="marker1"></div>
-            <div class="marker" id="marker2"></div>
+            <div class="crosshair" id="crosshair1"><div class="crosshair-dot"></div></div>
+            <div class="crosshair" id="crosshair2"><div class="crosshair-dot"></div></div>
         </div>
     </div>
 
     <div class="control-panel">
         <div class="instruction-banner" id="instructionBanner">
-            Step 1: Zoom in on your object, then tap <b>1. Mark Left Edge</b>.
+            Step 1: Zoom in, then tap <b>1. Mark Left Edge</b> with the crosshair.
         </div>
 
-        <div class="input-row">
+        <div class="row">
             <div class="input-group">
                 <label>Reference Object</label>
                 <select id="presetSelect">
@@ -228,9 +251,13 @@
                     <option value="custom">Custom Size...</option>
                 </select>
             </div>
-            <div class="input-group" id="customGroup" style="display: none; max-width: 110px;">
+            <div class="input-group" id="customGroup" style="display: none; max-width: 95px;">
                 <label>Width (cm)</label>
                 <input type="number" id="customSizeInput" value="10" step="0.5">
+            </div>
+            <div class="input-group" style="max-width: 105px;">
+                <label>Phone Calibration</label>
+                <input type="number" id="calibInput" value="1.0" step="0.05" min="0.5" max="2.0" title="Adjust if readings are off">
             </div>
         </div>
 
@@ -239,7 +266,7 @@
             <div class="result-value" id="distanceVal">--</div>
         </div>
 
-        <div class="btn-row" id="actionRow">
+        <div class="row" id="actionRow">
             <button class="btn" id="leftBtn">1. Mark Left Edge</button>
             <button class="btn btn-secondary" id="rightBtn" disabled>2. Mark Right Edge</button>
         </div>
@@ -252,13 +279,14 @@ const video = document.getElementById('video');
 const zoomBox = document.getElementById('zoomBox');
 const zoomSlider = document.getElementById('zoomSlider');
 const zoomText = document.getElementById('zoomText');
-const marker1 = document.getElementById('marker1');
-const marker2 = document.getElementById('marker2');
+const crosshair1 = document.getElementById('crosshair1');
+const crosshair2 = document.getElementById('crosshair2');
 const viewport = document.getElementById('viewport');
 const instructionBanner = document.getElementById('instructionBanner');
 const presetSelect = document.getElementById('presetSelect');
 const customGroup = document.getElementById('customGroup');
 const customSizeInput = document.getElementById('customSizeInput');
+const calibInput = document.getElementById('calibInput');
 const leftBtn = document.getElementById('leftBtn');
 const rightBtn = document.getElementById('rightBtn');
 const calcBtn = document.getElementById('calcBtn');
@@ -267,11 +295,10 @@ const distanceVal = document.getElementById('distanceVal');
 
 let videoTrack = null;
 let currentZoom = 1;
-let markingMode = null; // 'left' or 'right'
-let leftPoint = null;  // pixel coordinate on video stream
-let rightPoint = null; // pixel coordinate on video stream
+let markingMode = null; 
+let leftPoint = null;  
+let rightPoint = null; 
 
-// Start live rear camera feed
 async function initCamera() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -284,7 +311,6 @@ async function initCamera() {
         video.srcObject = stream;
         videoTrack = stream.getVideoTracks()[0];
 
-        // Check if device supports hardware zoom
         const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
         if (capabilities.zoom) {
             zoomSlider.min = capabilities.zoom.min;
@@ -296,13 +322,12 @@ async function initCamera() {
             zoomBox.style.display = 'flex';
         }
     } catch (err) {
-        alert('Camera access denied or unavailable. Make sure you are running over HTTPS or localhost.');
+        alert('Camera access denied or unavailable. Ensure HTTPS or localhost is used.');
         console.error(err);
     }
 }
 initCamera();
 
-// Handle zoom slider changes (hardware zoom with software fallback)
 zoomSlider.addEventListener('input', async (e) => {
     currentZoom = parseFloat(e.target.value);
     zoomText.textContent = currentZoom.toFixed(1) + 'x';
@@ -311,18 +336,13 @@ zoomSlider.addEventListener('input', async (e) => {
         try {
             await videoTrack.applyConstraints({ advanced: [{ zoom: currentZoom }] });
         } catch (err) {
-            // Fallback if hardware zoom constraint fails
             video.style.transform = `scale(${currentZoom})`;
         }
     }
 });
 
 presetSelect.addEventListener('change', (e) => {
-    if (e.target.value === 'custom') {
-        customGroup.style.display = 'flex';
-    } else {
-        customGroup.style.display = 'none';
-    }
+    customGroup.style.display = e.target.value === 'custom' ? 'flex' : 'none';
 });
 
 function getObjectRealWidth() {
@@ -334,17 +354,16 @@ function getObjectRealWidth() {
 
 leftBtn.addEventListener('click', () => {
     markingMode = 'left';
-    instructionBanner.innerHTML = "Tap the <b>left edge</b> of your object on the live video.";
+    instructionBanner.innerHTML = "Center the crosshair on the <b>left edge</b> and tap.";
     leftBtn.style.background = '#eab308';
 });
 
 rightBtn.addEventListener('click', () => {
     markingMode = 'right';
-    instructionBanner.innerHTML = "Tap the <b>right edge</b> of your object on the live video.";
+    instructionBanner.innerHTML = "Center the crosshair on the <b>right edge</b> and tap.";
     rightBtn.style.background = '#eab308';
 });
 
-// Tap handling on video viewport
 viewport.addEventListener('click', (e) => {
     if (!markingMode) return;
 
@@ -354,7 +373,6 @@ viewport.addEventListener('click', (e) => {
 
     if (clientX < 0 || clientX > rect.width || clientY < 0 || clientY > rect.height) return;
 
-    // Map screen tap coordinates to native video stream pixel resolution
     const scaleX = video.videoWidth / rect.width;
     const scaleY = video.videoHeight / rect.height;
 
@@ -363,13 +381,14 @@ viewport.addEventListener('click', (e) => {
 
     if (markingMode === 'left') {
         leftPoint = { x: nativeX, y: nativeY };
-        positionMarker(marker1, e.clientX, e.clientY);
-        marker1.style.display = 'block';
+        crosshair1.style.left = `${e.clientX}px`;
+        crosshair1.style.top = `${e.clientY}px`;
+        crosshair1.style.display = 'block';
 
         markingMode = null;
         leftBtn.style.background = '#22c55e';
         leftBtn.style.color = '#fff';
-        leftBtn.textContent = 'Left Edge Set ✓';
+        leftBtn.textContent = 'Left Set ✓';
 
         rightBtn.disabled = false;
         rightBtn.classList.remove('btn-secondary');
@@ -379,38 +398,33 @@ viewport.addEventListener('click', (e) => {
 
     } else if (markingMode === 'right') {
         rightPoint = { x: nativeX, y: nativeY };
-        positionMarker(marker2, e.clientX, e.clientY);
-        marker2.style.display = 'block';
+        crosshair2.style.left = `${e.clientX}px`;
+        crosshair2.style.top = `${e.clientY}px`;
+        crosshair2.style.display = 'block';
 
         markingMode = null;
         rightBtn.style.background = '#22c55e';
         rightBtn.style.color = '#fff';
-        rightBtn.textContent = 'Right Edge Set ✓';
+        rightBtn.textContent = 'Right Set ✓';
 
         calcBtn.style.display = 'block';
         rightBtn.style.display = 'none';
         leftBtn.style.display = 'none';
-        instructionBanner.innerHTML = "Both edges marked! Tap <b>Calculate Distance</b>.";
+        instructionBanner.innerHTML = "Both marked! Tap <b>Calculate Distance</b>.";
     }
 });
-
-function positionMarker(marker, screenX, screenY) {
-    marker.style.left = `${screenX}px`;
-    marker.style.top = `${screenY}px`;
-}
 
 calcBtn.addEventListener('click', () => {
     if (!leftPoint || !rightPoint) return;
 
     let realWidthCm = getObjectRealWidth();
     let pixelWidth = Math.abs(rightPoint.x - leftPoint.x);
+    let calibrationMultiplier = parseFloat(calibInput.value) || 1.0;
 
-    // Standard smartphone horizontal camera field of view (~60 degrees)
-    // Base focal length * current zoom level factor
-    let baseFocalLength = video.videoWidth * 1.15;
+    // Standard base focal length factoring in user phone calibration slider
+    let baseFocalLength = video.videoWidth * 1.15 * calibrationMultiplier;
     let effectiveFocalLength = baseFocalLength * currentZoom;
 
-    // Distance Formula: Distance = (Real Width * Focal Length) / Pixel Width
     let distanceCm = (realWidthCm * effectiveFocalLength) / pixelWidth;
     let distanceMeters = distanceCm / 100;
     let distanceFeet = distanceMeters * 3.28084;
@@ -423,12 +437,12 @@ calcBtn.addEventListener('click', () => {
 
     calcBtn.style.display = 'none';
     resetBtn.style.display = 'block';
-    instructionBanner.innerHTML = "Measurement complete!";
+    instructionBanner.innerHTML = "Measurement complete! Adjust Phone Calibration if needed.";
 });
 
 resetBtn.addEventListener('click', () => {
-    marker1.style.display = 'none';
-    marker2.style.display = 'none';
+    crosshair1.style.display = 'none';
+    crosshair2.style.display = 'none';
     calcBtn.style.display = 'none';
     resetBtn.style.display = 'none';
 
@@ -446,7 +460,7 @@ resetBtn.addEventListener('click', () => {
     leftPoint = null;
     rightPoint = null;
     distanceVal.textContent = '--';
-    instructionBanner.innerHTML = "Step 1: Zoom in on your object, then tap <b>1. Mark Left Edge</b>.";
+    instructionBanner.innerHTML = "Step 1: Zoom in, then tap <b>1. Mark Left Edge</b> with the crosshair.";
 });
 </script>
 
