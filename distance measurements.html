@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>WallRange - Optical Distance Measurer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: #090d16;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #f1f5f9;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+        header {
+            padding: 16px;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #1e293b;
+            z-index: 10;
+        }
+        h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #38bdf8;
+        }
+        .subtitle {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        .viewport {
+            position: relative;
+            flex: 1;
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .overlay-guide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .crosshair {
+            width: 30px;
+            height: 30px;
+            border: 2px dashed rgba(56, 189, 248, 0.6);
+            border-radius: 50%;
+            position: absolute;
+            pointer-events: none;
+            transition: transform 0.1s;
+        }
+        .marker-line {
+            position: absolute;
+            height: 2px;
+            background: #38bdf8;
+            top: 50%;
+            transform: translateY(-50%);
+            display: none;
+        }
+        .control-panel {
+            background: #0f172a;
+            padding: 20px;
+            border-top: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            z-index: 10;
+        }
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .input-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        select, input {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+            width: 100%;
+        }
+        .result-box {
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 14px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .result-label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+        .result-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #4ade80;
+            margin-top: 2px;
+        }
+        .btn-row {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            flex: 1;
+            background: #38bdf8;
+            color: #0f172a;
+            border: none;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+            transition: transform 0.1s;
+        }
+        .btn:active {
+            transform: scale(0.96);
+        }
+        .btn-secondary {
+            background: #334155;
+            color: #f8fafc;
+            box-shadow: none;
+        }
+        .instruction-banner {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #38bdf8;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>WallRange</h1>
+        <div class="subtitle">Optical Distance Estimator</div>
+    </header>
+
+    <div class="viewport" id="viewport">
+        <video id="video" autoplay playsinline muted></video>
+        <div class="instruction-banner" id="instructionBanner" style="position: absolute; top: 16px; left: 16px; right: 16px; z-index: 5;">
+            Step 1: Enter object size & tap <b>Set Left Edge</b>
+        </div>
+        <div class="marker-line" id="markerLine"></div>
+    </div>
+
+    <div class="control-panel">
+        <div class="input-row">
+            <div class="input-group">
+                <label>Reference Object</label>
+                <select id="presetSelect">
+                    <option value="8.56">Credit Card / ID (8.56 cm)</option>
+                    <option value="21.0">A4 Paper Width (21.0 cm)</option>
+                    <option value="7.6">Sticky Note (7.6 cm)</option>
+                    <option value="custom">Custom Size...</option>
+                </select>
+            </div>
+            <div class="input-group" id="customGroup" style="display: none; max-width: 120px;">
+                <label>Width (cm)</label>
+                <input type="number" id="customSizeInput" value="10" step="0.5">
+            </div>
+        </div>
+
+        <div class="result-box">
+            <div class="result-label">Estimated Distance to Wall</div>
+            <div class="result-value" id="distanceVal">--</div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn btn-secondary" id="leftBtn">Set Left Edge</button>
+            <button class="btn btn-secondary" id="rightBtn" disabled>Set Right Edge</button>
+        </div>
+        <button class="btn" id="calcBtn" style="display: none;">Calculate Distance</button>
+    </div>
+
+<script>
+const video = document.getElementById('video');
+const presetSelect = document.getElementById('presetSelect');
+const customGroup = document.getElementById('customGroup');
+const customSizeInput = document.getElementById('customSizeInput');
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+const calcBtn = document.getElementById('calcBtn');
+const instructionBanner = document.getElementById('instructionBanner');
+const markerLine = document.getElementById('markerLine');
+const distanceVal = document.getElementById('distanceVal');
+
+let leftPixelX = null;
+let rightPixelX = null;
+let step = 1; // 1: waiting for left, 2: waiting for right
+
+// Start camera stream
+async function initCamera() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        });
+        video.srcObject = stream;
+    } catch (err) {
+        alert('Camera access is required for this tool to function.');
+        console.error(err);
+    }
+}
+initCamera();
+
+presetSelect.addEventListener('change', (e) => {
+    if (e.target.value === 'custom') {
+        customGroup.style.display = 'flex';
+    } else {
+        customGroup.style.display = 'none';
+    }
+});
+
+function getObjectRealWidth() {
+    if (presetSelect.value === 'custom') {
+        return parseFloat(customSizeInput.value) || 10;
+    }
+    return parseFloat(presetSelect.value);
+}
+
+// Center screen tap guides
+let viewport = document.getElementById('viewport');
+
+leftBtn.addEventListener('click', () => {
+    // Capture center X of screen as left edge marker
+    const rect = viewport.getBoundingClientRect();
+    leftPixelX = rect.width / 2 - 40; // sample point left of center
+    rightPixelX = null;
+    
+    instructionBanner.innerHTML = "Step 2: Align object's right edge and tap <b>Set Right Edge</b>";
+    leftBtn.style.background = '#22c55e';
+    leftBtn.style.color = '#fff';
+    leftBtn.textContent = 'Left Edge Set ✓';
+    rightBtn.disabled = false;
+    rightBtn.style.background = '#38bdf8';
+    rightBtn.style.color = '#0f172a';
+    markerLine.style.display = 'block';
+    markerLine.style.left = `${leftPixelX}px`;
+    markerLine.style.width = '0px';
+});
+
+rightBtn.addEventListener('click', () => {
+    const rect = viewport.getBoundingClientRect();
+    rightPixelX = rect.width / 2 + 40; // sample point right of center
+    
+    instructionBanner.innerHTML = "Edges captured! Tap <b>Calculate</b> below.";
+    rightBtn.style.background = '#22c55e';
+    rightBtn.style.color = '#fff';
+    rightBtn.textContent = 'Right Edge Set ✓';
+    
+    markerLine.style.width = `${rightPixelX - leftPixelX}px`;
+    
+    calcBtn.style.display = 'block';
+    rightBtn.style.display = 'none';
+    leftBtn.style.display = 'none';
+});
+
+calcBtn.addEventListener('click', () => {
+    if (leftPixelX === null || rightPixelX === null) return;
+
+    let realWidthCm = getObjectRealWidth();
+    let pixelWidth = Math.abs(rightPixelX - leftPixelX);
+
+    // Approximate phone camera focal length in pixels
+    // Standard smartphone horizontal field of view is ~60 degrees.
+    // Focal Length (pixels) ≈ (Video Width / 2) / tan(FOV / 2)
+    let videoWidth = video.videoWidth || viewport.clientWidth;
+    let focalLength = videoWidth * 1.15; // standard approximation for mobile rear cameras
+
+    // Formula: Distance = (Real Width * Focal Length) / Pixel Width
+    let distanceCm = (realWidthCm * focalLength) / (pixelWidth * (videoWidth / viewport.clientWidth));
+    let distanceMeters = distanceCm / 100;
+    let distanceFeet = distanceMeters * 3.28084;
+
+    if (distanceMeters < 0.1 || distanceMeters > 50) {
+        distanceVal.textContent = "Out of range / Recalibrate";
+    } else {
+        distanceVal.textContent = `${distanceMeters.toFixed(2)} m (${distanceFeet.toFixed(1)} ft)`;
+    }
+
+    // Reset buttons for another measurement
+    calcBtn.style.display = 'none';
+    leftBtn.style.display = 'block';
+    rightBtn.style.display = 'block';
+    leftBtn.style.background = '#334155';
+    leftBtn.style.color = '#f8fafc';
+    leftBtn.textContent = 'Set Left Edge';
+    rightBtn.style.background = '#334155';
+    rightBtn.style.color = '#f8fafc';
+    rightBtn.textContent = 'Set Right Edge';
+    rightBtn.disabled = true;
+    markerLine.style.display = 'none';
+    instructionBanner.innerHTML = "Step 1: Enter object size & tap <b>Set Left Edge</b>";
+});
+</script>
+
+</body>
+</html>
