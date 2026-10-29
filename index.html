@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>WallRange - Optical Distance Measurer</title>
+    <title>WallRange - Zoomable Photo Distance Measurer</title>
     <style>
         * {
             box-sizing: border-box;
@@ -11,6 +11,7 @@
             -webkit-user-select: none;
             margin: 0;
             padding: 0;
+            touch-action: none; /* Prevents default browser scroll/zoom gestures inside viewport */
         }
         body {
             background: #090d16;
@@ -25,10 +26,10 @@
         header {
             padding: 16px;
             text-align: center;
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(10px);
+            background: rgba(15, 23, 42, 0.9);
             border-bottom: 1px solid #1e293b;
             z-index: 10;
+            touch-action: auto;
         }
         h1 {
             font-size: 18px;
@@ -43,46 +44,57 @@
         .viewport {
             position: relative;
             flex: 1;
-            background: #000;
+            background: #020617;
             overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
         }
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .overlay-guide {
+        .transform-container {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
+            transform-origin: 0 0;
+            will-change: transform;
+        }
+        img {
+            display: block;
+            max-width: 85vw;
+            max-height: 55vh;
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .placeholder-box {
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            padding: 20px;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+            border: 2px dashed #334155;
+            border-radius: 16px;
+            background: #0f172a;
+            color: #94a3b8;
+            cursor: pointer;
+            width: 90%;
+            max-width: 320px;
         }
-        .crosshair {
-            width: 30px;
-            height: 30px;
-            border: 2px dashed rgba(56, 189, 248, 0.6);
+        .placeholder-box svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            stroke: #38bdf8;
+        }
+        .marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ef4444;
+            border: 3px solid #fff;
             border-radius: 50%;
-            position: absolute;
+            transform: translate(-50%, -50%);
             pointer-events: none;
-            transition: transform 0.1s;
-        }
-        .marker-line {
-            position: absolute;
-            height: 2px;
-            background: #38bdf8;
-            top: 50%;
-            transform: translateY(-50%);
             display: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            z-index: 5;
         }
         .control-panel {
             background: #0f172a;
@@ -92,6 +104,7 @@
             flex-direction: column;
             gap: 14px;
             z-index: 10;
+            touch-action: auto;
         }
         .input-row {
             display: flex;
@@ -133,7 +146,7 @@
             text-transform: uppercase;
         }
         .result-value {
-            font-size: 28px;
+            font-size: 26px;
             font-weight: 700;
             color: #4ade80;
             margin-top: 2px;
@@ -172,28 +185,44 @@
             color: #38bdf8;
             text-align: center;
         }
+        input[type="file"] {
+            display: none;
+        }
     </style>
 </head>
 <body>
 
     <header>
         <h1>WallRange</h1>
-        <div class="subtitle">Optical Distance Estimator</div>
+        <div class="subtitle">Zoomable Photo Distance Measurer</div>
     </header>
 
     <div class="viewport" id="viewport">
-        <video id="video" autoplay playsinline muted></video>
-        <div class="instruction-banner" id="instructionBanner" style="position: absolute; top: 16px; left: 16px; right: 16px; z-index: 5;">
-            Step 1: Enter object size & tap <b>Set Left Edge</b>
+        <!-- Initial Upload Placeholder -->
+        <label for="fileInput" class="placeholder-box" id="placeholderBox">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span>Tap to Take Photo or Upload Screenshot</span>
+        </label>
+
+        <!-- Transform Container for Pinch-to-Zoom & Pan -->
+        <div class="transform-container" id="transformContainer" style="display: none;">
+            <img id="previewImg" alt="Uploaded wall photo">
+            <div class="marker" id="marker1"></div>
+            <div class="marker" id="marker2"></div>
         </div>
-        <div class="marker-line" id="markerLine"></div>
+
+        <input type="file" id="fileInput" accept="image/*">
     </div>
 
     <div class="control-panel">
+        <div class="instruction-banner" id="instructionBanner">
+            Step 1: Upload a photo showing your reference object on the wall.
+        </div>
+
         <div class="input-row">
             <div class="input-group">
                 <label>Reference Object</label>
-                <select id="presetSelect">
+                <select id="presetSelect" disabled>
                     <option value="8.56">Credit Card / ID (8.56 cm)</option>
                     <option value="21.0">A4 Paper Width (21.0 cm)</option>
                     <option value="7.6">Sticky Note (7.6 cm)</option>
@@ -211,42 +240,84 @@
             <div class="result-value" id="distanceVal">--</div>
         </div>
 
-        <div class="btn-row">
-            <button class="btn btn-secondary" id="leftBtn">Set Left Edge</button>
-            <button class="btn btn-secondary" id="rightBtn" disabled>Set Right Edge</button>
+        <div class="btn-row" id="actionRow">
+            <button class="btn btn-secondary" id="leftBtn" disabled>1. Tap Left Edge</button>
+            <button class="btn btn-secondary" id="rightBtn" disabled>2. Tap Right Edge</button>
         </div>
         <button class="btn" id="calcBtn" style="display: none;">Calculate Distance</button>
+        <button class="btn btn-secondary" id="resetBtn" style="display: none;">Upload New Photo</button>
     </div>
 
 <script>
-const video = document.getElementById('video');
+const fileInput = document.getElementById('fileInput');
+const placeholderBox = document.getElementById('placeholderBox');
+const transformContainer = document.getElementById('transformContainer');
+const previewImg = document.getElementById('previewImg');
+const marker1 = document.getElementById('marker1');
+const marker2 = document.getElementById('marker2');
+const viewport = document.getElementById('viewport');
+const instructionBanner = document.getElementById('instructionBanner');
 const presetSelect = document.getElementById('presetSelect');
 const customGroup = document.getElementById('customGroup');
 const customSizeInput = document.getElementById('customSizeInput');
 const leftBtn = document.getElementById('leftBtn');
 const rightBtn = document.getElementById('rightBtn');
 const calcBtn = document.getElementById('calcBtn');
-const instructionBanner = document.getElementById('instructionBanner');
-const markerLine = document.getElementById('markerLine');
+const resetBtn = document.getElementById('resetBtn');
 const distanceVal = document.getElementById('distanceVal');
 
-let leftPixelX = null;
-let rightPixelX = null;
-let step = 1; // 1: waiting for left, 2: waiting for right
+let clickingMode = null; // 'left' or 'right'
+let leftPoint = null;  // {x, y} in natural image coordinates
+let rightPoint = null; // {x, y} in natural image coordinates
 
-// Start camera stream
-async function initCamera() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-        });
-        video.srcObject = stream;
-    } catch (err) {
-        alert('Camera access is required for this tool to function.');
-        console.error(err);
-    }
+// Zoom & Pan state
+let scale = 1;
+let panX = 0;
+let panY = 0;
+let isDragging = false;
+let startX = 0, startY = 0;
+let startPanX = 0, startPanY = 0;
+let initialPinchDistance = null;
+let initialScale = 1;
+let hasMoved = false;
+let clickStartTime = 0;
+const pointers = new Map();
+
+function updateTransform() {
+    transformContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
 }
-initCamera();
+
+// Handle file selection / photo capture
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        previewImg.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+previewImg.onload = function() {
+    placeholderBox.style.display = 'none';
+    transformContainer.style.display = 'block';
+
+    // Center image initially in viewport
+    scale = 1;
+    panX = (viewport.clientWidth - previewImg.clientWidth) / 2;
+    panY = (viewport.clientHeight - previewImg.clientHeight) / 2;
+    updateTransform();
+
+    presetSelect.disabled = false;
+    leftBtn.disabled = false;
+    leftBtn.classList.remove('btn-secondary');
+    leftBtn.style.background = '#38bdf8';
+    leftBtn.style.color = '#0f172a';
+    
+    instructionBanner.innerHTML = "Step 2: Pinch to zoom in on your object, tap <b>1. Tap Left Edge</b>, then tap its left side.";
+    resetBtn.style.display = 'block';
+};
 
 presetSelect.addEventListener('change', (e) => {
     if (e.target.value === 'custom') {
@@ -263,79 +334,186 @@ function getObjectRealWidth() {
     return parseFloat(presetSelect.value);
 }
 
-// Center screen tap guides
-let viewport = document.getElementById('viewport');
-
+// Mode selectors
 leftBtn.addEventListener('click', () => {
-    // Capture center X of screen as left edge marker
-    const rect = viewport.getBoundingClientRect();
-    leftPixelX = rect.width / 2 - 40; // sample point left of center
-    rightPixelX = null;
-    
-    instructionBanner.innerHTML = "Step 2: Align object's right edge and tap <b>Set Right Edge</b>";
-    leftBtn.style.background = '#22c55e';
-    leftBtn.style.color = '#fff';
-    leftBtn.textContent = 'Left Edge Set ✓';
-    rightBtn.disabled = false;
-    rightBtn.style.background = '#38bdf8';
-    rightBtn.style.color = '#0f172a';
-    markerLine.style.display = 'block';
-    markerLine.style.left = `${leftPixelX}px`;
-    markerLine.style.width = '0px';
+    clickingMode = 'left';
+    instructionBanner.innerHTML = "<b>Zoom & Tap Left Edge</b> of your reference object.";
+    leftBtn.style.background = '#eab308';
 });
 
 rightBtn.addEventListener('click', () => {
-    const rect = viewport.getBoundingClientRect();
-    rightPixelX = rect.width / 2 + 40; // sample point right of center
-    
-    instructionBanner.innerHTML = "Edges captured! Tap <b>Calculate</b> below.";
-    rightBtn.style.background = '#22c55e';
-    rightBtn.style.color = '#fff';
-    rightBtn.textContent = 'Right Edge Set ✓';
-    
-    markerLine.style.width = `${rightPixelX - leftPixelX}px`;
-    
-    calcBtn.style.display = 'block';
-    rightBtn.style.display = 'none';
-    leftBtn.style.display = 'none';
+    clickingMode = 'right';
+    instructionBanner.innerHTML = "<b>Zoom & Tap Right Edge</b> of your reference object.";
+    rightBtn.style.background = '#eab308';
 });
 
+// Gesture and Touch Handlers for Pinch, Pan, and Tap Marker Placement
+viewport.addEventListener('pointerdown', (e) => {
+    viewport.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    hasMoved = false;
+    clickStartTime = Date.now();
+
+    if (pointers.size === 1) {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startPanX = panX;
+        startPanY = panY;
+    } else if (pointers.size === 2) {
+        isDragging = false;
+        const pts = Array.from(pointers.values());
+        initialPinchDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        initialScale = scale;
+    }
+});
+
+viewport.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.size === 1 && isDragging) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (Math.hypot(dx, dy) > 5) {
+            hasMoved = true;
+        }
+        panX = startPanX + dx;
+        panY = startPanY + dy;
+        updateTransform();
+    } else if (pointers.size === 2 && initialPinchDistance) {
+        hasMoved = true;
+        const pts = Array.from(pointers.values());
+        const currentDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        const factor = currentDistance / initialPinchDistance;
+        scale = Math.min(Math.max(1, initialScale * factor), 8); // Allow up to 8x zoom
+        updateTransform();
+    }
+});
+
+viewport.addEventListener('pointerup', (e) => {
+    viewport.releasePointerCapture(e.pointerId);
+    pointers.delete(e.pointerId);
+
+    if (pointers.size < 2) {
+        initialPinchDistance = null;
+    }
+    if (pointers.size === 1) {
+        isDragging = true;
+        startX = pointers.values().next().value.x;
+        startY = pointers.values().next().value.y;
+        startPanX = panX;
+        startPanY = panY;
+    } else if (pointers.size === 0) {
+        isDragging = false;
+        // Quick tap without dragging -> place marker if mode active
+        if (!hasMoved && Date.now() - clickStartTime < 350 && clickingMode) {
+            handleMarkerTap(e);
+        }
+    }
+});
+
+function handleMarkerTap(e) {
+    const vRect = viewport.getBoundingClientRect();
+    const screenX = e.clientX - vRect.left;
+    const screenY = e.clientY - vRect.top;
+
+    // Convert screen tap to unscaled image local coordinates
+    const unscaledX = (screenX - panX) / scale;
+    const unscaledY = (screenY - panY) / scale;
+
+    if (unscaledX < 0 || unscaledX > previewImg.clientWidth || unscaledY < 0 || unscaledY > previewImg.clientHeight) {
+        return; // Tapped outside image boundaries
+    }
+
+    // Convert to natural image resolution coordinates
+    const scaleToNaturalX = previewImg.naturalWidth / previewImg.clientWidth;
+    const scaleToNaturalY = previewImg.naturalHeight / previewImg.clientHeight;
+
+    const naturalX = unscaledX * scaleToNaturalX;
+    const naturalY = unscaledY * scaleToNaturalY;
+
+    if (clickingMode === 'left') {
+        leftPoint = { x: naturalX, y: naturalY };
+        marker1.style.left = `${unscaledX}px`;
+        marker1.style.top = `${unscaledY}px`;
+        marker1.style.display = 'block';
+
+        clickingMode = null;
+        leftBtn.style.background = '#22c55e';
+        leftBtn.style.color = '#fff';
+        leftBtn.textContent = 'Left Edge Set ✓';
+
+        rightBtn.disabled = false;
+        rightBtn.classList.remove('btn-secondary');
+        rightBtn.style.background = '#38bdf8';
+        rightBtn.style.color = '#0f172a';
+        instructionBanner.innerHTML = "Step 3: Tap <b>2. Tap Right Edge</b>, zoom in, and tap the right side of your object.";
+
+    } else if (clickingMode === 'right') {
+        rightPoint = { x: naturalX, y: naturalY };
+        marker2.style.left = `${unscaledX}px`;
+        marker2.style.top = `${unscaledY}px`;
+        marker2.style.display = 'block';
+
+        clickingMode = null;
+        rightBtn.style.background = '#22c55e';
+        rightBtn.style.color = '#fff';
+        rightBtn.textContent = 'Right Edge Set ✓';
+
+        calcBtn.style.display = 'block';
+        rightBtn.style.display = 'none';
+        leftBtn.style.display = 'none';
+        instructionBanner.innerHTML = "Both edges captured! Tap <b>Calculate Distance</b>.";
+    }
+}
+
 calcBtn.addEventListener('click', () => {
-    if (leftPixelX === null || rightPixelX === null) return;
+    if (!leftPoint || !rightPoint) return;
 
     let realWidthCm = getObjectRealWidth();
-    let pixelWidth = Math.abs(rightPixelX - leftPixelX);
+    let pixelWidth = Math.abs(rightPoint.x - leftPoint.x);
 
-    // Approximate phone camera focal length in pixels
-    // Standard smartphone horizontal field of view is ~60 degrees.
-    // Focal Length (pixels) ≈ (Video Width / 2) / tan(FOV / 2)
-    let videoWidth = video.videoWidth || viewport.clientWidth;
-    let focalLength = videoWidth * 1.15; // standard approximation for mobile rear cameras
+    // Standard smartphone camera focal length approximation
+    let focalLength = previewImg.naturalWidth * 1.15;
 
-    // Formula: Distance = (Real Width * Focal Length) / Pixel Width
-    let distanceCm = (realWidthCm * focalLength) / (pixelWidth * (videoWidth / viewport.clientWidth));
+    // Distance Formula
+    let distanceCm = (realWidthCm * focalLength) / pixelWidth;
     let distanceMeters = distanceCm / 100;
     let distanceFeet = distanceMeters * 3.28084;
 
     if (distanceMeters < 0.1 || distanceMeters > 50) {
-        distanceVal.textContent = "Out of range / Recalibrate";
+        distanceVal.textContent = "Out of range";
     } else {
         distanceVal.textContent = `${distanceMeters.toFixed(2)} m (${distanceFeet.toFixed(1)} ft)`;
     }
 
-    // Reset buttons for another measurement
     calcBtn.style.display = 'none';
+    resetBtn.style.display = 'block';
+});
+
+resetBtn.addEventListener('click', () => {
+    transformContainer.style.display = 'none';
+    placeholderBox.style.display = 'flex';
+    marker1.style.display = 'none';
+    marker2.style.display = 'none';
+    calcBtn.style.display = 'none';
+    resetBtn.style.display = 'none';
+    
     leftBtn.style.display = 'block';
     rightBtn.style.display = 'block';
-    leftBtn.style.background = '#334155';
-    leftBtn.style.color = '#f8fafc';
-    leftBtn.textContent = 'Set Left Edge';
-    rightBtn.style.background = '#334155';
-    rightBtn.style.color = '#f8fafc';
-    rightBtn.textContent = 'Set Right Edge';
+    leftBtn.disabled = true;
+    leftBtn.classList.add('btn-secondary');
+    leftBtn.textContent = '1. Tap Left Edge';
     rightBtn.disabled = true;
-    markerLine.style.display = 'none';
-    instructionBanner.innerHTML = "Step 1: Enter object size & tap <b>Set Left Edge</b>";
+    rightBtn.classList.add('btn-secondary');
+    rightBtn.textContent = '2. Tap Right Edge';
+
+    leftPoint = null;
+    rightPoint = null;
+    distanceVal.textContent = '--';
+    instructionBanner.innerHTML = "Step 1: Upload a photo showing your reference object on the wall.";
+    fileInput.value = '';
 });
 </script>
 
