@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>WallRange - Zoomable Photo Distance Measurer</title>
+    <title>LiveZoom WallRange</title>
     <style>
         * {
             box-sizing: border-box;
@@ -11,7 +11,6 @@
             -webkit-user-select: none;
             margin: 0;
             padding: 0;
-            touch-action: none; /* Prevents default browser scroll/zoom gestures inside viewport */
         }
         body {
             background: #090d16;
@@ -24,12 +23,11 @@
             overflow: hidden;
         }
         header {
-            padding: 16px;
+            padding: 14px;
             text-align: center;
             background: rgba(15, 23, 42, 0.9);
             border-bottom: 1px solid #1e293b;
             z-index: 10;
-            touch-action: auto;
         }
         h1 {
             font-size: 18px;
@@ -37,74 +35,81 @@
             color: #38bdf8;
         }
         .subtitle {
-            font-size: 12px;
+            font-size: 11px;
             color: #94a3b8;
             margin-top: 2px;
         }
         .viewport {
             position: relative;
             flex: 1;
-            background: #020617;
+            background: #000;
             overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
         }
-        .transform-container {
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .overlay-layer {
             position: absolute;
-            transform-origin: 0 0;
-            will-change: transform;
-        }
-        img {
-            display: block;
-            max-width: 85vw;
-            max-height: 55vh;
-            border-radius: 4px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        }
-        .placeholder-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            text-align: center;
-            border: 2px dashed #334155;
-            border-radius: 16px;
-            background: #0f172a;
-            color: #94a3b8;
-            cursor: pointer;
-            width: 90%;
-            max-width: 320px;
-        }
-        .placeholder-box svg {
-            width: 48px;
-            height: 48px;
-            margin-bottom: 12px;
-            stroke: #38bdf8;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
         }
         .marker {
             position: absolute;
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             background: #ef4444;
             border: 3px solid #fff;
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            pointer-events: none;
             display: none;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
             z-index: 5;
+        }
+        .zoom-control-box {
+            position: absolute;
+            right: 16px;
+            top: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid #334155;
+            padding: 10px 14px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 8;
+        }
+        .zoom-label {
+            font-size: 10px;
+            color: #38bdf8;
+            font-weight: 700;
+        }
+        .zoom-control-box input[type="range"] {
+            writing-mode: bt-lr; /* IE */
+            writing-mode: vertical-lr;
+            direction: rtl;
+            width: 8px;
+            height: 120px;
+            accent-color: #38bdf8;
+            cursor: pointer;
         }
         .control-panel {
             background: #0f172a;
-            padding: 20px;
+            padding: 18px;
             border-top: 1px solid #1e293b;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 12px;
             z-index: 10;
-            touch-action: auto;
         }
         .input-row {
             display: flex;
@@ -118,7 +123,7 @@
             gap: 4px;
         }
         label {
-            font-size: 11px;
+            font-size: 10px;
             color: #94a3b8;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -127,26 +132,26 @@
             background: #1e293b;
             border: 1px solid #334155;
             color: #fff;
-            padding: 10px 12px;
+            padding: 10px;
             border-radius: 10px;
-            font-size: 15px;
+            font-size: 14px;
             outline: none;
             width: 100%;
         }
         .result-box {
             background: #1e293b;
             border: 1px solid #334155;
-            padding: 14px;
+            padding: 12px;
             border-radius: 12px;
             text-align: center;
         }
         .result-label {
-            font-size: 11px;
+            font-size: 10px;
             color: #94a3b8;
             text-transform: uppercase;
         }
         .result-value {
-            font-size: 26px;
+            font-size: 24px;
             font-weight: 700;
             color: #4ade80;
             margin-top: 2px;
@@ -160,8 +165,8 @@
             background: #38bdf8;
             color: #0f172a;
             border: none;
-            padding: 14px;
-            font-size: 15px;
+            padding: 13px;
+            font-size: 14px;
             font-weight: 600;
             border-radius: 12px;
             cursor: pointer;
@@ -179,57 +184,51 @@
         .instruction-banner {
             background: rgba(56, 189, 248, 0.15);
             border: 1px solid rgba(56, 189, 248, 0.3);
-            padding: 10px 14px;
+            padding: 8px 12px;
             border-radius: 8px;
-            font-size: 13px;
+            font-size: 12px;
             color: #38bdf8;
             text-align: center;
-        }
-        input[type="file"] {
-            display: none;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>WallRange</h1>
-        <div class="subtitle">Zoomable Photo Distance Measurer</div>
+        <h1>LiveZoom WallRange</h1>
+        <div class="subtitle">Live Camera Optical Distance Measurer</div>
     </header>
 
     <div class="viewport" id="viewport">
-        <!-- Initial Upload Placeholder -->
-        <label for="fileInput" class="placeholder-box" id="placeholderBox">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            <span>Tap to Take Photo or Upload Screenshot</span>
-        </label>
+        <video id="video" autoplay playsinline muted></video>
+        
+        <div class="zoom-control-box" id="zoomBox" style="display: none;">
+            <div class="zoom-label" id="zoomText">1x</div>
+            <input type="range" id="zoomSlider" min="1" max="5" step="0.1" value="1">
+        </div>
 
-        <!-- Transform Container for Pinch-to-Zoom & Pan -->
-        <div class="transform-container" id="transformContainer" style="display: none;">
-            <img id="previewImg" alt="Uploaded wall photo">
+        <div class="overlay-layer">
             <div class="marker" id="marker1"></div>
             <div class="marker" id="marker2"></div>
         </div>
-
-        <input type="file" id="fileInput" accept="image/*">
     </div>
 
     <div class="control-panel">
         <div class="instruction-banner" id="instructionBanner">
-            Step 1: Upload a photo showing your reference object on the wall.
+            Step 1: Zoom in on your object, then tap <b>1. Mark Left Edge</b>.
         </div>
 
         <div class="input-row">
             <div class="input-group">
                 <label>Reference Object</label>
-                <select id="presetSelect" disabled>
+                <select id="presetSelect">
                     <option value="8.56">Credit Card / ID (8.56 cm)</option>
                     <option value="21.0">A4 Paper Width (21.0 cm)</option>
                     <option value="7.6">Sticky Note (7.6 cm)</option>
                     <option value="custom">Custom Size...</option>
                 </select>
             </div>
-            <div class="input-group" id="customGroup" style="display: none; max-width: 120px;">
+            <div class="input-group" id="customGroup" style="display: none; max-width: 110px;">
                 <label>Width (cm)</label>
                 <input type="number" id="customSizeInput" value="10" step="0.5">
             </div>
@@ -241,18 +240,18 @@
         </div>
 
         <div class="btn-row" id="actionRow">
-            <button class="btn btn-secondary" id="leftBtn" disabled>1. Tap Left Edge</button>
-            <button class="btn btn-secondary" id="rightBtn" disabled>2. Tap Right Edge</button>
+            <button class="btn" id="leftBtn">1. Mark Left Edge</button>
+            <button class="btn btn-secondary" id="rightBtn" disabled>2. Mark Right Edge</button>
         </div>
         <button class="btn" id="calcBtn" style="display: none;">Calculate Distance</button>
-        <button class="btn btn-secondary" id="resetBtn" style="display: none;">Upload New Photo</button>
+        <button class="btn btn-secondary" id="resetBtn" style="display: none;">Reset Measurer</button>
     </div>
 
 <script>
-const fileInput = document.getElementById('fileInput');
-const placeholderBox = document.getElementById('placeholderBox');
-const transformContainer = document.getElementById('transformContainer');
-const previewImg = document.getElementById('previewImg');
+const video = document.getElementById('video');
+const zoomBox = document.getElementById('zoomBox');
+const zoomSlider = document.getElementById('zoomSlider');
+const zoomText = document.getElementById('zoomText');
 const marker1 = document.getElementById('marker1');
 const marker2 = document.getElementById('marker2');
 const viewport = document.getElementById('viewport');
@@ -266,58 +265,57 @@ const calcBtn = document.getElementById('calcBtn');
 const resetBtn = document.getElementById('resetBtn');
 const distanceVal = document.getElementById('distanceVal');
 
-let clickingMode = null; // 'left' or 'right'
-let leftPoint = null;  // {x, y} in natural image coordinates
-let rightPoint = null; // {x, y} in natural image coordinates
+let videoTrack = null;
+let currentZoom = 1;
+let markingMode = null; // 'left' or 'right'
+let leftPoint = null;  // pixel coordinate on video stream
+let rightPoint = null; // pixel coordinate on video stream
 
-// Zoom & Pan state
-let scale = 1;
-let panX = 0;
-let panY = 0;
-let isDragging = false;
-let startX = 0, startY = 0;
-let startPanX = 0, startPanY = 0;
-let initialPinchDistance = null;
-let initialScale = 1;
-let hasMoved = false;
-let clickStartTime = 0;
-const pointers = new Map();
+// Start live rear camera feed
+async function initCamera() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+            }
+        });
+        video.srcObject = stream;
+        videoTrack = stream.getVideoTracks()[0];
 
-function updateTransform() {
-    transformContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        // Check if device supports hardware zoom
+        const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+        if (capabilities.zoom) {
+            zoomSlider.min = capabilities.zoom.min;
+            zoomSlider.max = capabilities.zoom.max;
+            zoomSlider.step = capabilities.zoom.step || 0.1;
+            zoomSlider.value = videoTrack.getSettings().zoom || 1;
+            currentZoom = parseFloat(zoomSlider.value);
+            zoomText.textContent = currentZoom.toFixed(1) + 'x';
+            zoomBox.style.display = 'flex';
+        }
+    } catch (err) {
+        alert('Camera access denied or unavailable. Make sure you are running over HTTPS or localhost.');
+        console.error(err);
+    }
 }
+initCamera();
 
-// Handle file selection / photo capture
-fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+// Handle zoom slider changes (hardware zoom with software fallback)
+zoomSlider.addEventListener('input', async (e) => {
+    currentZoom = parseFloat(e.target.value);
+    zoomText.textContent = currentZoom.toFixed(1) + 'x';
 
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        previewImg.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
+    if (videoTrack && videoTrack.applyConstraints) {
+        try {
+            await videoTrack.applyConstraints({ advanced: [{ zoom: currentZoom }] });
+        } catch (err) {
+            // Fallback if hardware zoom constraint fails
+            video.style.transform = `scale(${currentZoom})`;
+        }
+    }
 });
-
-previewImg.onload = function() {
-    placeholderBox.style.display = 'none';
-    transformContainer.style.display = 'block';
-
-    // Center image initially in viewport
-    scale = 1;
-    panX = (viewport.clientWidth - previewImg.clientWidth) / 2;
-    panY = (viewport.clientHeight - previewImg.clientHeight) / 2;
-    updateTransform();
-
-    presetSelect.disabled = false;
-    leftBtn.disabled = false;
-    leftBtn.classList.remove('btn-secondary');
-    leftBtn.style.background = '#38bdf8';
-    leftBtn.style.color = '#0f172a';
-    
-    instructionBanner.innerHTML = "Step 2: Pinch to zoom in on your object, tap <b>1. Tap Left Edge</b>, then tap its left side.";
-    resetBtn.style.display = 'block';
-};
 
 presetSelect.addEventListener('change', (e) => {
     if (e.target.value === 'custom') {
@@ -334,112 +332,41 @@ function getObjectRealWidth() {
     return parseFloat(presetSelect.value);
 }
 
-// Mode selectors
 leftBtn.addEventListener('click', () => {
-    clickingMode = 'left';
-    instructionBanner.innerHTML = "<b>Zoom & Tap Left Edge</b> of your reference object.";
+    markingMode = 'left';
+    instructionBanner.innerHTML = "Tap the <b>left edge</b> of your object on the live video.";
     leftBtn.style.background = '#eab308';
 });
 
 rightBtn.addEventListener('click', () => {
-    clickingMode = 'right';
-    instructionBanner.innerHTML = "<b>Zoom & Tap Right Edge</b> of your reference object.";
+    markingMode = 'right';
+    instructionBanner.innerHTML = "Tap the <b>right edge</b> of your object on the live video.";
     rightBtn.style.background = '#eab308';
 });
 
-// Gesture and Touch Handlers for Pinch, Pan, and Tap Marker Placement
-viewport.addEventListener('pointerdown', (e) => {
-    viewport.setPointerCapture(e.pointerId);
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    hasMoved = false;
-    clickStartTime = Date.now();
+// Tap handling on video viewport
+viewport.addEventListener('click', (e) => {
+    if (!markingMode) return;
 
-    if (pointers.size === 1) {
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        startPanX = panX;
-        startPanY = panY;
-    } else if (pointers.size === 2) {
-        isDragging = false;
-        const pts = Array.from(pointers.values());
-        initialPinchDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-        initialScale = scale;
-    }
-});
+    const rect = video.getBoundingClientRect();
+    const clientX = e.clientX - rect.left;
+    const clientY = e.clientY - rect.top;
 
-viewport.addEventListener('pointermove', (e) => {
-    if (!pointers.has(e.pointerId)) return;
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (clientX < 0 || clientX > rect.width || clientY < 0 || clientY > rect.height) return;
 
-    if (pointers.size === 1 && isDragging) {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        if (Math.hypot(dx, dy) > 5) {
-            hasMoved = true;
-        }
-        panX = startPanX + dx;
-        panY = startPanY + dy;
-        updateTransform();
-    } else if (pointers.size === 2 && initialPinchDistance) {
-        hasMoved = true;
-        const pts = Array.from(pointers.values());
-        const currentDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-        const factor = currentDistance / initialPinchDistance;
-        scale = Math.min(Math.max(1, initialScale * factor), 8); // Allow up to 8x zoom
-        updateTransform();
-    }
-});
+    // Map screen tap coordinates to native video stream pixel resolution
+    const scaleX = video.videoWidth / rect.width;
+    const scaleY = video.videoHeight / rect.height;
 
-viewport.addEventListener('pointerup', (e) => {
-    viewport.releasePointerCapture(e.pointerId);
-    pointers.delete(e.pointerId);
+    const nativeX = clientX * scaleX;
+    const nativeY = clientY * scaleY;
 
-    if (pointers.size < 2) {
-        initialPinchDistance = null;
-    }
-    if (pointers.size === 1) {
-        isDragging = true;
-        startX = pointers.values().next().value.x;
-        startY = pointers.values().next().value.y;
-        startPanX = panX;
-        startPanY = panY;
-    } else if (pointers.size === 0) {
-        isDragging = false;
-        // Quick tap without dragging -> place marker if mode active
-        if (!hasMoved && Date.now() - clickStartTime < 350 && clickingMode) {
-            handleMarkerTap(e);
-        }
-    }
-});
-
-function handleMarkerTap(e) {
-    const vRect = viewport.getBoundingClientRect();
-    const screenX = e.clientX - vRect.left;
-    const screenY = e.clientY - vRect.top;
-
-    // Convert screen tap to unscaled image local coordinates
-    const unscaledX = (screenX - panX) / scale;
-    const unscaledY = (screenY - panY) / scale;
-
-    if (unscaledX < 0 || unscaledX > previewImg.clientWidth || unscaledY < 0 || unscaledY > previewImg.clientHeight) {
-        return; // Tapped outside image boundaries
-    }
-
-    // Convert to natural image resolution coordinates
-    const scaleToNaturalX = previewImg.naturalWidth / previewImg.clientWidth;
-    const scaleToNaturalY = previewImg.naturalHeight / previewImg.clientHeight;
-
-    const naturalX = unscaledX * scaleToNaturalX;
-    const naturalY = unscaledY * scaleToNaturalY;
-
-    if (clickingMode === 'left') {
-        leftPoint = { x: naturalX, y: naturalY };
-        marker1.style.left = `${unscaledX}px`;
-        marker1.style.top = `${unscaledY}px`;
+    if (markingMode === 'left') {
+        leftPoint = { x: nativeX, y: nativeY };
+        positionMarker(marker1, e.clientX, e.clientY);
         marker1.style.display = 'block';
 
-        clickingMode = null;
+        markingMode = null;
         leftBtn.style.background = '#22c55e';
         leftBtn.style.color = '#fff';
         leftBtn.textContent = 'Left Edge Set ✓';
@@ -448,15 +375,14 @@ function handleMarkerTap(e) {
         rightBtn.classList.remove('btn-secondary');
         rightBtn.style.background = '#38bdf8';
         rightBtn.style.color = '#0f172a';
-        instructionBanner.innerHTML = "Step 3: Tap <b>2. Tap Right Edge</b>, zoom in, and tap the right side of your object.";
+        instructionBanner.innerHTML = "Step 2: Tap <b>2. Mark Right Edge</b>.";
 
-    } else if (clickingMode === 'right') {
-        rightPoint = { x: naturalX, y: naturalY };
-        marker2.style.left = `${unscaledX}px`;
-        marker2.style.top = `${unscaledY}px`;
+    } else if (markingMode === 'right') {
+        rightPoint = { x: nativeX, y: nativeY };
+        positionMarker(marker2, e.clientX, e.clientY);
         marker2.style.display = 'block';
 
-        clickingMode = null;
+        markingMode = null;
         rightBtn.style.background = '#22c55e';
         rightBtn.style.color = '#fff';
         rightBtn.textContent = 'Right Edge Set ✓';
@@ -464,8 +390,13 @@ function handleMarkerTap(e) {
         calcBtn.style.display = 'block';
         rightBtn.style.display = 'none';
         leftBtn.style.display = 'none';
-        instructionBanner.innerHTML = "Both edges captured! Tap <b>Calculate Distance</b>.";
+        instructionBanner.innerHTML = "Both edges marked! Tap <b>Calculate Distance</b>.";
     }
+});
+
+function positionMarker(marker, screenX, screenY) {
+    marker.style.left = `${screenX}px`;
+    marker.style.top = `${screenY}px`;
 }
 
 calcBtn.addEventListener('click', () => {
@@ -474,15 +405,17 @@ calcBtn.addEventListener('click', () => {
     let realWidthCm = getObjectRealWidth();
     let pixelWidth = Math.abs(rightPoint.x - leftPoint.x);
 
-    // Standard smartphone camera focal length approximation
-    let focalLength = previewImg.naturalWidth * 1.15;
+    // Standard smartphone horizontal camera field of view (~60 degrees)
+    // Base focal length * current zoom level factor
+    let baseFocalLength = video.videoWidth * 1.15;
+    let effectiveFocalLength = baseFocalLength * currentZoom;
 
-    // Distance Formula
-    let distanceCm = (realWidthCm * focalLength) / pixelWidth;
+    // Distance Formula: Distance = (Real Width * Focal Length) / Pixel Width
+    let distanceCm = (realWidthCm * effectiveFocalLength) / pixelWidth;
     let distanceMeters = distanceCm / 100;
     let distanceFeet = distanceMeters * 3.28084;
 
-    if (distanceMeters < 0.1 || distanceMeters > 50) {
+    if (distanceMeters < 0.1 || distanceMeters > 100) {
         distanceVal.textContent = "Out of range";
     } else {
         distanceVal.textContent = `${distanceMeters.toFixed(2)} m (${distanceFeet.toFixed(1)} ft)`;
@@ -490,30 +423,30 @@ calcBtn.addEventListener('click', () => {
 
     calcBtn.style.display = 'none';
     resetBtn.style.display = 'block';
+    instructionBanner.innerHTML = "Measurement complete!";
 });
 
 resetBtn.addEventListener('click', () => {
-    transformContainer.style.display = 'none';
-    placeholderBox.style.display = 'flex';
     marker1.style.display = 'none';
     marker2.style.display = 'none';
     calcBtn.style.display = 'none';
     resetBtn.style.display = 'none';
-    
+
     leftBtn.style.display = 'block';
     rightBtn.style.display = 'block';
-    leftBtn.disabled = true;
-    leftBtn.classList.add('btn-secondary');
-    leftBtn.textContent = '1. Tap Left Edge';
+    leftBtn.disabled = false;
+    leftBtn.style.background = '#38bdf8';
+    leftBtn.style.color = '#0f172a';
+    leftBtn.textContent = '1. Mark Left Edge';
+
     rightBtn.disabled = true;
     rightBtn.classList.add('btn-secondary');
-    rightBtn.textContent = '2. Tap Right Edge';
+    rightBtn.textContent = '2. Mark Right Edge';
 
     leftPoint = null;
     rightPoint = null;
     distanceVal.textContent = '--';
-    instructionBanner.innerHTML = "Step 1: Upload a photo showing your reference object on the wall.";
-    fileInput.value = '';
+    instructionBanner.innerHTML = "Step 1: Zoom in on your object, then tap <b>1. Mark Left Edge</b>.";
 });
 </script>
 
