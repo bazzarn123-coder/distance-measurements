@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Precision WallRange</title>
+    <title>Precision Drag WallRange</title>
     <style>
         * {
             box-sizing: border-box;
@@ -11,6 +11,7 @@
             -webkit-user-select: none;
             margin: 0;
             padding: 0;
+            touch-action: none;
         }
         body {
             background: #090d16;
@@ -52,6 +53,9 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
         .overlay-layer {
             position: absolute;
@@ -61,44 +65,76 @@
             height: 100%;
             pointer-events: none;
         }
-        /* Precision Hairline Crosshair */
-        .crosshair {
+        
+        /* Draggable Active Crosshair */
+        .active-crosshair {
             position: absolute;
-            width: 40px;
-            height: 40px;
+            width: 60px;
+            height: 60px;
+            transform: translate(-50%, -50%);
+            display: none;
+            cursor: move;
+            z-index: 10;
+            pointer-events: auto;
+        }
+        .active-crosshair::before {
+            content: '';
+            position: absolute;
+            top: 29px;
+            left: 0;
+            width: 60px;
+            height: 2px;
+            background: #eab308;
+            box-shadow: 0 0 6px rgba(0,0,0,0.9);
+        }
+        .active-crosshair::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 29px;
+            width: 2px;
+            height: 60px;
+            background: #eab308;
+            box-shadow: 0 0 6px rgba(0,0,0,0.9);
+        }
+        .active-dot {
+            position: absolute;
+            top: 27px;
+            left: 27px;
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 4px #eab308;
+        }
+
+        /* Locked Markers */
+        .locked-marker {
+            position: absolute;
+            width: 30px;
+            height: 30px;
             transform: translate(-50%, -50%);
             display: none;
             pointer-events: none;
             z-index: 5;
         }
-        .crosshair::before {
+        .locked-marker::before {
             content: '';
             position: absolute;
-            top: 19px;
+            top: 14px;
             left: 0;
-            width: 40px;
+            width: 30px;
             height: 2px;
             background: #ef4444;
-            box-shadow: 0 0 4px rgba(0,0,0,0.8);
         }
-        .crosshair::after {
+        .locked-marker::after {
             content: '';
             position: absolute;
             top: 0;
-            left: 19px;
+            left: 14px;
             width: 2px;
-            height: 40px;
+            height: 30px;
             background: #ef4444;
-            box-shadow: 0 0 4px rgba(0,0,0,0.8);
-        }
-        .crosshair-dot {
-            position: absolute;
-            top: 18px;
-            left: 18px;
-            width: 4px;
-            height: 4px;
-            background: #fff;
-            border-radius: 50%;
         }
 
         .zoom-control-box {
@@ -115,6 +151,7 @@
             align-items: center;
             gap: 6px;
             z-index: 8;
+            pointer-events: auto;
         }
         .zoom-label {
             font-size: 10px;
@@ -137,6 +174,7 @@
             flex-direction: column;
             gap: 10px;
             z-index: 10;
+            touch-action: auto;
         }
         .row {
             display: flex;
@@ -218,8 +256,8 @@
 <body>
 
     <header>
-        <h1>Precision WallRange</h1>
-        <div class="subtitle">Calibrated Optical Measurer</div>
+        <h1>Precision Drag WallRange</h1>
+        <div class="subtitle">Slide & Align Optical Measurer</div>
     </header>
 
     <div class="viewport" id="viewport">
@@ -231,14 +269,15 @@
         </div>
 
         <div class="overlay-layer">
-            <div class="crosshair" id="crosshair1"><div class="crosshair-dot"></div></div>
-            <div class="crosshair" id="crosshair2"><div class="crosshair-dot"></div></div>
+            <div class="active-crosshair" id="activeCrosshair"><div class="active-dot"></div></div>
+            <div class="locked-marker" id="lockedMarker1"></div>
+            <div class="locked-marker" id="lockedMarker2"></div>
         </div>
     </div>
 
     <div class="control-panel">
         <div class="instruction-banner" id="instructionBanner">
-            Step 1: Zoom in, then tap <b>1. Mark Left Edge</b> with the crosshair.
+            Step 1: Tap <b>1. Set Left Edge</b> to place the sliding crosshair.
         </div>
 
         <div class="row">
@@ -257,7 +296,7 @@
             </div>
             <div class="input-group" style="max-width: 105px;">
                 <label>Phone Calibration</label>
-                <input type="number" id="calibInput" value="1.0" step="0.05" min="0.5" max="2.0" title="Adjust if readings are off">
+                <input type="number" id="calibInput" value="1.0" step="0.05" min="0.5" max="2.0">
             </div>
         </div>
 
@@ -267,9 +306,13 @@
         </div>
 
         <div class="row" id="actionRow">
-            <button class="btn" id="leftBtn">1. Mark Left Edge</button>
-            <button class="btn btn-secondary" id="rightBtn" disabled>2. Mark Right Edge</button>
+            <button class="btn" id="leftBtn">1. Set Left Edge</button>
+            <button class="btn btn-secondary" id="confirmLeftBtn" style="display: none; background: #22c55e; color: #fff;">Confirm Left Position</button>
+            
+            <button class="btn btn-secondary" id="rightBtn" disabled>2. Set Right Edge</button>
+            <button class="btn btn-secondary" id="confirmRightBtn" style="display: none; background: #22c55e; color: #fff;">Confirm Right Position</button>
         </div>
+        
         <button class="btn" id="calcBtn" style="display: none;">Calculate Distance</button>
         <button class="btn btn-secondary" id="resetBtn" style="display: none;">Reset Measurer</button>
     </div>
@@ -279,25 +322,34 @@ const video = document.getElementById('video');
 const zoomBox = document.getElementById('zoomBox');
 const zoomSlider = document.getElementById('zoomSlider');
 const zoomText = document.getElementById('zoomText');
-const crosshair1 = document.getElementById('crosshair1');
-const crosshair2 = document.getElementById('crosshair2');
+const activeCrosshair = document.getElementById('activeCrosshair');
+const lockedMarker1 = document.getElementById('lockedMarker1');
+const lockedMarker2 = document.getElementById('lockedMarker2');
 const viewport = document.getElementById('viewport');
 const instructionBanner = document.getElementById('instructionBanner');
 const presetSelect = document.getElementById('presetSelect');
 const customGroup = document.getElementById('customGroup');
 const customSizeInput = document.getElementById('customSizeInput');
 const calibInput = document.getElementById('calibInput');
+
 const leftBtn = document.getElementById('leftBtn');
+const confirmLeftBtn = document.getElementById('confirmLeftBtn');
 const rightBtn = document.getElementById('rightBtn');
+const confirmRightBtn = document.getElementById('confirmRightBtn');
 const calcBtn = document.getElementById('calcBtn');
 const resetBtn = document.getElementById('resetBtn');
 const distanceVal = document.getElementById('distanceVal');
 
 let videoTrack = null;
 let currentZoom = 1;
-let markingMode = null; 
+let markingState = null; // 'left' or 'right'
 let leftPoint = null;  
 let rightPoint = null; 
+
+// Crosshair position in viewport screen coordinates
+let crosshairX = window.innerWidth / 2;
+let crosshairY = window.innerHeight / 2;
+let isDraggingCrosshair = false;
 
 async function initCamera() {
     try {
@@ -352,66 +404,127 @@ function getObjectRealWidth() {
     return parseFloat(presetSelect.value);
 }
 
+function updateCrosshairPos() {
+    activeCrosshair.style.left = `${crosshairX}px`;
+    activeCrosshair.style.top = `${crosshairY}px`;
+}
+
+// Make active crosshair draggable anywhere with touch/mouse
+activeCrosshair.addEventListener('pointerdown', (e) => {
+    isDraggingCrosshair = true;
+    activeCrosshair.setPointerCapture(e.pointerId);
+});
+
+activeCrosshair.addEventListener('pointermove', (e) => {
+    if (!isDraggingCrosshair) return;
+    const rect = viewport.getBoundingClientRect();
+    crosshairX = e.clientX - rect.left;
+    crosshairY = e.clientY - rect.top;
+    updateCrosshairPos();
+});
+
+activeCrosshair.addEventListener('pointerup', (e) => {
+    isDraggingCrosshair = false;
+    activeCrosshair.releasePointerCapture(e.pointerId);
+});
+
+// Also allow dragging anywhere on the viewport when placing
+viewport.addEventListener('pointerdown', (e) => {
+    if (!markingState) return;
+    const rect = viewport.getBoundingClientRect();
+    crosshairX = e.clientX - rect.left;
+    crosshairY = e.clientY - rect.top;
+    updateCrosshairPos();
+    isDraggingCrosshair = true;
+});
+
+viewport.addEventListener('pointermove', (e) => {
+    if (!isDraggingCrosshair || !markingState) return;
+    const rect = viewport.getBoundingClientRect();
+    crosshairX = e.clientX - rect.left;
+    crosshairY = e.clientY - rect.top;
+    updateCrosshairPos();
+});
+
+viewport.addEventListener('pointerup', () => {
+    isDraggingCrosshair = false;
+});
+
+// Step 1: Initialize Left Edge
 leftBtn.addEventListener('click', () => {
-    markingMode = 'left';
-    instructionBanner.innerHTML = "Center the crosshair on the <b>left edge</b> and tap.";
-    leftBtn.style.background = '#eab308';
+    markingState = 'left';
+    crosshairX = viewport.clientWidth / 2;
+    crosshairY = viewport.clientHeight / 2;
+    updateCrosshairPos();
+    activeCrosshair.style.display = 'block';
+
+    leftBtn.style.display = 'none';
+    confirmLeftBtn.style.display = 'block';
+    instructionBanner.innerHTML = "Slide the yellow crosshair onto the <b>left edge</b>, then tap Confirm.";
 });
 
-rightBtn.addEventListener('click', () => {
-    markingMode = 'right';
-    instructionBanner.innerHTML = "Center the crosshair on the <b>right edge</b> and tap.";
-    rightBtn.style.background = '#eab308';
-});
-
-viewport.addEventListener('click', (e) => {
-    if (!markingMode) return;
-
+// Confirm Left Edge
+confirmLeftBtn.addEventListener('click', () => {
     const rect = video.getBoundingClientRect();
-    const clientX = e.clientX - rect.left;
-    const clientY = e.clientY - rect.top;
-
-    if (clientX < 0 || clientX > rect.width || clientY < 0 || clientY > rect.height) return;
+    const clientX = crosshairX;
+    const clientY = crosshairY;
 
     const scaleX = video.videoWidth / rect.width;
     const scaleY = video.videoHeight / rect.height;
 
-    const nativeX = clientX * scaleX;
-    const nativeY = clientY * scaleY;
+    leftPoint = { x: clientX * scaleX, y: clientY * scaleY };
+    
+    lockedMarker1.style.left = `${clientX}px`;
+    lockedMarker1.style.top = `${clientY}px`;
+    lockedMarker1.style.display = 'block';
 
-    if (markingMode === 'left') {
-        leftPoint = { x: nativeX, y: nativeY };
-        crosshair1.style.left = `${e.clientX}px`;
-        crosshair1.style.top = `${e.clientY}px`;
-        crosshair1.style.display = 'block';
+    activeCrosshair.style.display = 'none';
+    confirmLeftBtn.style.display = 'none';
 
-        markingMode = null;
-        leftBtn.style.background = '#22c55e';
-        leftBtn.style.color = '#fff';
-        leftBtn.textContent = 'Left Set ✓';
+    rightBtn.style.display = 'block';
+    rightBtn.disabled = false;
+    rightBtn.classList.remove('btn-secondary');
+    rightBtn.style.background = '#38bdf8';
+    rightBtn.style.color = '#0f172a';
+    instructionBanner.innerHTML = "Step 2: Tap <b>2. Set Right Edge</b>.";
+    markingState = null;
+});
 
-        rightBtn.disabled = false;
-        rightBtn.classList.remove('btn-secondary');
-        rightBtn.style.background = '#38bdf8';
-        rightBtn.style.color = '#0f172a';
-        instructionBanner.innerHTML = "Step 2: Tap <b>2. Mark Right Edge</b>.";
+// Step 2: Initialize Right Edge
+rightBtn.addEventListener('click', () => {
+    markingState = 'right';
+    // Keep Y aligned with left point so height is locked perfectly!
+    crosshairY = parseFloat(lockedMarker1.style.top);
+    crosshairX = viewport.clientWidth / 2 + 50;
+    updateCrosshairPos();
+    activeCrosshair.style.display = 'block';
 
-    } else if (markingMode === 'right') {
-        rightPoint = { x: nativeX, y: nativeY };
-        crosshair2.style.left = `${e.clientX}px`;
-        crosshair2.style.top = `${e.clientY}px`;
-        crosshair2.style.display = 'block';
+    rightBtn.style.display = 'none';
+    confirmRightBtn.style.display = 'block';
+    instructionBanner.innerHTML = "Slide the crosshair to the <b>right edge</b> (height is locked horizontally), then tap Confirm.";
+});
 
-        markingMode = null;
-        rightBtn.style.background = '#22c55e';
-        rightBtn.style.color = '#fff';
-        rightBtn.textContent = 'Right Set ✓';
+// Confirm Right Edge
+confirmRightBtn.addEventListener('click', () => {
+    const rect = video.getBoundingClientRect();
+    const clientX = crosshairX;
+    const clientY = crosshairY;
 
-        calcBtn.style.display = 'block';
-        rightBtn.style.display = 'none';
-        leftBtn.style.display = 'none';
-        instructionBanner.innerHTML = "Both marked! Tap <b>Calculate Distance</b>.";
-    }
+    const scaleX = video.videoWidth / rect.width;
+    const scaleY = video.videoHeight / rect.height;
+
+    rightPoint = { x: clientX * scaleX, y: clientY * scaleY };
+
+    lockedMarker2.style.left = `${clientX}px`;
+    lockedMarker2.style.top = `${clientY}px`;
+    lockedMarker2.style.display = 'block';
+
+    activeCrosshair.style.display = 'none';
+    confirmRightBtn.style.display = 'none';
+
+    calcBtn.style.display = 'block';
+    instructionBanner.innerHTML = "Both edges confirmed! Tap <b>Calculate Distance</b>.";
+    markingState = null;
 });
 
 calcBtn.addEventListener('click', () => {
@@ -421,7 +534,6 @@ calcBtn.addEventListener('click', () => {
     let pixelWidth = Math.abs(rightPoint.x - leftPoint.x);
     let calibrationMultiplier = parseFloat(calibInput.value) || 1.0;
 
-    // Standard base focal length factoring in user phone calibration slider
     let baseFocalLength = video.videoWidth * 1.15 * calibrationMultiplier;
     let effectiveFocalLength = baseFocalLength * currentZoom;
 
@@ -437,30 +549,31 @@ calcBtn.addEventListener('click', () => {
 
     calcBtn.style.display = 'none';
     resetBtn.style.display = 'block';
-    instructionBanner.innerHTML = "Measurement complete! Adjust Phone Calibration if needed.";
+    instructionBanner.innerHTML = "Measurement complete!";
 });
 
 resetBtn.addEventListener('click', () => {
-    crosshair1.style.display = 'none';
-    crosshair2.style.display = 'none';
+    lockedMarker1.style.display = 'none';
+    lockedMarker2.style.display = 'none';
+    activeCrosshair.style.display = 'none';
     calcBtn.style.display = 'none';
     resetBtn.style.display = 'none';
 
     leftBtn.style.display = 'block';
-    rightBtn.style.display = 'block';
     leftBtn.disabled = false;
     leftBtn.style.background = '#38bdf8';
     leftBtn.style.color = '#0f172a';
-    leftBtn.textContent = '1. Mark Left Edge';
+    leftBtn.textContent = '1. Set Left Edge';
 
+    rightBtn.style.display = 'block';
     rightBtn.disabled = true;
     rightBtn.classList.add('btn-secondary');
-    rightBtn.textContent = '2. Mark Right Edge';
+    rightBtn.textContent = '2. Set Right Edge';
 
     leftPoint = null;
     rightPoint = null;
     distanceVal.textContent = '--';
-    instructionBanner.innerHTML = "Step 1: Zoom in, then tap <b>1. Mark Left Edge</b> with the crosshair.";
+    instructionBanner.innerHTML = "Step 1: Tap <b>1. Set Left Edge</b> to place the sliding crosshair.";
 });
 </script>
 
